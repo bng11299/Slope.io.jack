@@ -1,0 +1,114 @@
+class Obstacle {
+    field int lane;
+    field int z;
+    field boolean passed;
+    field boolean active;  // false = waiting to be spawned, invisible
+
+    constructor Obstacle new(int startLane, int startZ) {
+        let lane   = startLane;
+        let z      = startZ;
+        let passed = false;
+        let active = true;
+        return this;
+    }
+
+    // Called every frame. Does NOT set passed — SlopeGame checks z<=0 itself
+    // so collision can be tested before the obstacle is recycled.
+    method void update() {
+        if (~active) { return; }
+        let z = z - 3;
+        return;
+    }
+
+    // SlopeGame calls this after collision check, once z<=0
+    method void markPassed() {
+        let passed = true;
+        let active = false;
+        return;
+    }
+
+    method void reset(int newLane, int newZ) {
+        let lane   = newLane;
+        let z      = newZ;
+        let passed = false;
+        let active = true;
+        return;
+    }
+
+    method boolean isActive() { return active; }
+
+    // screenY: 40 when z=256 (far), 220 when z=0 (at player)
+    method int screenY() {
+        var int travelled;
+        let travelled = 256 - z;
+        if (travelled < 0)   { let travelled = 0;   }
+        if (travelled > 256) { let travelled = 256; }
+        return 40 + ((180 * travelled) / 256);
+    }
+
+    // screenX converges to vanishing point (256) when far
+    method int screenX() {
+        var int laneX;
+        if (lane = 0) { let laneX = 160; }
+        if (lane = 1) { let laneX = 256; }
+        if (lane = 2) { let laneX = 352; }
+        return laneX + (((256 - laneX) * z) / 256);
+    }
+
+    method int halfW() {
+        var int travelled;
+        let travelled = 256 - z;
+        if (travelled < 0)   { let travelled = 0;   }
+        if (travelled > 256) { let travelled = 256; }
+        return (28 * travelled) / 256;
+    }
+
+    method int halfH() {
+        var int travelled;
+        let travelled = 256 - z;
+        if (travelled < 0)   { let travelled = 0;   }
+        if (travelled > 256) { let travelled = 256; }
+        return (20 * travelled) / 256;
+    }
+
+    method void draw() {
+        var int cx, cy, hw, hh;
+        var int x1, y1, x2, y2;
+        if (~active) { return; }
+        if (z < 2)   { return; }
+        if (z > 255) { return; }
+        let cx = screenX();
+        let cy = screenY();
+        let hw = halfW();
+        let hh = halfH();
+        if (hw < 1) { return; }
+        if (hh < 1) { return; }
+        let x1 = cx - hw;
+        let y1 = cy - hh;
+        let x2 = cx + hw;
+        let y2 = cy + hh;
+        if (x1 < 0)   { let x1 = 0;   }
+        if (y1 < 0)   { let y1 = 0;   }
+        if (x2 > 511) { let x2 = 511; }
+        if (y2 > 255) { let y2 = 255; }
+        if (x1 > x2)  { return; }
+        if (y1 > y2)  { return; }
+        do Screen.setColor(true);
+        do Screen.drawRectangle(x1, y1, x2, y2);
+        return;
+    }
+
+    method int getLane()        { return lane;   }
+    method int getZ()           { return z;      }
+    method boolean getPassed()  { return passed; }
+
+    method int getX()      { return screenX() - halfW(); }
+    method int getY()      { return screenY() - halfH(); }
+    method int getWidth()  { var int w; let w = halfW(); return w + w; }
+    method int getHeight() { var int h; let h = halfH(); return h + h; }
+
+    method void dispose() {
+        do Memory.deAlloc(this);
+        return;
+    }
+}

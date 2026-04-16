@@ -1,0 +1,119 @@
+class Ball {
+    field int lane;
+    field int x;
+    field int y;
+    field int radius;
+    field int vy;
+    field boolean isJumping;
+
+    method int targetX() {
+        if (lane = 0) { return 160; }
+        if (lane = 1) { return 256; }
+        return 352;
+    }
+
+    constructor Ball new() {
+        let lane      = 1;
+        let x         = 256;
+        let y         = 220;
+        let radius    = 8;
+        let vy        = 0;
+        let isJumping = false;
+        return this;
+    }
+
+    method void update() {
+        var int tx, diff;
+
+        // Slide x toward target lane
+        let tx   = targetX();
+        let diff = tx - x;
+        if (diff > 6)  { let x = x + 6; }
+        if (diff < -6) { let x = x - 6; }
+        if ((diff > -6) & (diff < 6)) { let x = tx; }
+
+        // Apply gravity when jumping
+        if (isJumping) {
+            let vy = vy + 2;
+            let y  = y + vy;
+
+            // Clamp so ball never goes above y=radius (off screen top)
+            if (y < radius) { let y = radius; }
+
+            // Landed back on road
+            if (y > 220) {
+                let y         = 220;
+                let vy        = 0;
+                let isJumping = false;
+            }
+        }
+        return;
+    }
+
+    method void jump() {
+        if (~isJumping) {
+            let isJumping = true;
+            let vy        = -12;
+        }
+        return;
+    }
+
+    method void moveLeft() {
+        if (lane > 0) { let lane = lane - 1; }
+        return;
+    }
+
+    method void moveRight() {
+        if (lane < 2) { let lane = lane + 1; }
+        return;
+    }
+
+    method int getLane() { return lane; }
+    method int getX()    { return x;    }
+    method int getY()    { return y;    }
+
+    method void draw() {
+        // Guard: only draw if ball is fully on screen
+        // Screen is 512x256; drawCircle needs x-r>=0, x+r<=511, y-r>=0, y+r<=255
+        if ((x - radius) < 0)   { return; }
+        if ((x + radius) > 511) { return; }
+        if ((y - radius) < 0)   { return; }
+        if ((y + radius) > 255) { return; }
+        do Screen.setColor(true);
+        do Screen.drawCircle(x, y, radius);
+        return;
+    }
+
+    method boolean collidesWith(Obstacle obstacle) {
+        var int obX, obY, obW, obH;
+
+        // Lane shortcut when not jumping
+        if (~isJumping) {
+            if (~(lane = obstacle.getLane())) { return false; }
+        }
+
+        // Only check when obstacle is close enough to have meaningful size
+        if (obstacle.getZ() > 40) { return false; }
+
+        let obX = obstacle.getX();
+        let obY = obstacle.getY();
+        let obW = obstacle.getWidth();
+        let obH = obstacle.getHeight();
+
+        if ((x + radius) > obX) {
+            if ((x - radius) < (obX + obW)) {
+                if ((y + radius) > obY) {
+                    if ((y - radius) < (obY + obH)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    method void dispose() {
+        do Memory.deAlloc(this);
+        return;
+    }
+}
