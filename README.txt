@@ -28,6 +28,8 @@ Initially, I tried to utilize the same logic as the Hackenstein game on the nand
 In this implementation, the road lines converge. All the road edges and lane dividers are drawn as straight lines meeting at the horizon line. This is a trick I learned from my second grade art class.
 As obstacles approach the player, it gets drawn lower on the screen and becomes larger. By the time it reaches the player it is a large rectangle at the bottom of the screen. The countdown happens every frame, so it should go towards you without any framedrops(pray).
 
+*Not updated as of April 16 2026. Will make README changes by April 19 2026
+
 Workflow Plan:
 Last week(spring break): scaffolding and most of the code(got "3d" working)
 This week and next week: Projects 9 and 10, will NOT look at this to avoid a headache
