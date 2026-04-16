@@ -9,6 +9,7 @@ class SlopeGame {
     field int spawnTimer;   // counts down; when 0, next obstacle is released
     field int nextObstacle; // index of next obstacle to release (0..4)
     field int seed;         // cheap pseudo-random lane picker
+    field int scoreTick;    // counts frames; every 5 frames score += 1 (~10pts between 50-frame spawns)
 
     constructor SlopeGame new() {
         var int i;
@@ -24,6 +25,7 @@ class SlopeGame {
         let spawnTimer   = 0;
         let nextObstacle = 0;
         let seed         = 1;
+        let scoreTick    = 0;
 
         // Start all obstacles inactive and far away
         let i = 0;
@@ -116,6 +118,15 @@ class SlopeGame {
             let collision = checkCollisions();
             if (collision) { let gameState = 2; }
 
+            // Score ticks up every 5 frames regardless of obstacles (~10 pts per spawn interval)
+            if (gameState = 1) {
+                let scoreTick = scoreTick + 1;
+                if (scoreTick > 4) {
+                    let score = score + 1;
+                    let scoreTick = 0;
+                }
+            }
+
             do draw();
             do Sys.wait(30);
         }
@@ -125,7 +136,8 @@ class SlopeGame {
     }
 
     // -------------------------------------------------------------------------
-    // Obstacle management
+    // Obstacle management — only moves obstacles, never recycles them.
+    // Recycling happens in checkCollisions() AFTER collision is tested.
     // -------------------------------------------------------------------------
     method void updateObstacles() {
         var int i;
@@ -141,16 +153,12 @@ class SlopeGame {
             let spawnTimer = 50;
         }
 
-        // Move all active obstacles and recycle those that have passed
+        // Move all active obstacles — do NOT recycle here
         let i = 0;
         while (i < 5) {
             let obs = obstacles[i];
             if (obs.isActive()) {
                 do obs.update();
-                if (obs.getZ() < 1) {
-                    do obs.markPassed();
-                    let score = score + 10;
-                }
             }
             let i = i + 1;
         }
@@ -158,21 +166,32 @@ class SlopeGame {
     }
 
     // -------------------------------------------------------------------------
-    // Collision — checked BEFORE obstacles are recycled this frame
+    // Collision + score: runs AFTER updateObstacles, BEFORE draw.
+    // Collision is tested first while obstacle is still active.
+    // Score fires as obstacle reaches the player (z < 12) — no more delay.
+    // Obstacle is only recycled after both checks are done.
     // -------------------------------------------------------------------------
     method boolean checkCollisions() {
         var int i;
         var Obstacle obs;
+        var boolean hit;
 
+        let hit = false;
         let i = 0;
         while (i < 5) {
             let obs = obstacles[i];
             if (obs.isActive()) {
-                if (ball.collidesWith(obs)) { return true; }
+                // 1. Collision check while obstacle is still active
+                if (ball.collidesWith(obs)) { let hit = true; }
+
+                // 2. Once at player position, recycle (score is handled by tick in run())
+                if (obs.getZ() < 12) {
+                    do obs.markPassed();
+                }
             }
             let i = i + 1;
         }
-        return false;
+        return hit;
     }
 
     // -------------------------------------------------------------------------

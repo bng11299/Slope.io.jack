@@ -18,10 +18,10 @@ class Platform {
     }
 
     method void draw() {
-        // Vanishing point
+        // Vanishing point — kept low so the road fills most of the screen
         var int vx, vy;
         let vx = 256;
-        let vy = 40;
+        let vy = 50;
 
         do Screen.setColor(true);
 
@@ -42,6 +42,14 @@ class Platform {
 
         // Right lane divider: vanishing point -> (320, 255)
         do Screen.drawLine(vx, vy, 320, 255);
+
+        // Horizon reference markers: small vertical ticks above the horizon
+        // to give a sense of scale / 3D depth cue
+        do Screen.drawLine(80,  vy - 6, 80,  vy);
+        do Screen.drawLine(160, vy - 4, 160, vy);
+        do Screen.drawLine(256, vy - 2, 256, vy);
+        do Screen.drawLine(352, vy - 4, 352, vy);
+        do Screen.drawLine(432, vy - 6, 432, vy);
 
         return;
     }
