@@ -1,0 +1,61 @@
+// Platform.jack
+// Draws the pseudo-3D road each frame.
+// The road has two outer edges, two lane dividers, and a horizon line,
+// all converging at the vanishing point (256, 40).
+// No animation — the 3D effect comes from obstacles and ball changing
+// size and position as their depth changes.
+
+class Platform {
+    field int dummy;  // needed: Memory.alloc(0) is illegal in nand2tetris
+
+    constructor Platform new() {
+        let dummy = 0;
+        return this;
+    }
+
+    method void update() {
+        return;
+    }
+
+    method void draw() {
+        // Vanishing point — kept low so the road fills most of the screen
+        var int vx, vy;
+        let vx = 256;
+        let vy = 50;
+
+        do Screen.setColor(true);
+
+        // Horizon line
+        do Screen.drawLine(0, vy, 511, vy);
+
+        // Road bottom edge
+        do Screen.drawLine(0, 255, 511, 255);
+
+        // Left road edge: vanishing point -> bottom-left of road (x=80)
+        do Screen.drawLine(vx, vy, 80, 255);
+
+        // Right road edge: vanishing point -> bottom-right of road (x=432)
+        do Screen.drawLine(vx, vy, 432, 255);
+
+        // Left lane divider: vanishing point -> (192, 255)
+        do Screen.drawLine(vx, vy, 192, 255);
+
+        // Right lane divider: vanishing point -> (320, 255)
+        do Screen.drawLine(vx, vy, 320, 255);
+
+        // Horizon reference markers: small vertical ticks above the horizon
+        // to give a sense of scale / 3D depth cue
+        do Screen.drawLine(80,  vy - 6, 80,  vy);
+        do Screen.drawLine(160, vy - 4, 160, vy);
+        do Screen.drawLine(256, vy - 2, 256, vy);
+        do Screen.drawLine(352, vy - 4, 352, vy);
+        do Screen.drawLine(432, vy - 6, 432, vy);
+
+        return;
+    }
+
+    method void dispose() {
+        do Memory.deAlloc(this);
+        return;
+    }
+}

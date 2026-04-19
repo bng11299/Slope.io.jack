@@ -1,0 +1,283 @@
+class SlopeGame {
+    field Ball ball;
+    field Platform platform;
+    field Array obstacles;
+    field int score;
+    field int gameState;
+    field String strScore;
+    field String strControls;
+    field int spawnTimer;   // counts down; when 0, next obstacle is released
+    field int nextObstacle; // index of next obstacle to release (0..4)
+    field int seed;         // cheap pseudo-random lane picker
+    field int scoreTick;    // counts frames; every 5 frames score += 1 (~10pts between 50-frame spawns)
+
+    constructor SlopeGame new() {
+        var int i;
+        var Obstacle obs;
+
+        let ball         = Ball.new();
+        let platform     = Platform.new();
+        let obstacles    = Array.new(5);
+        let score        = 0;
+        let gameState    = 0;
+        let strScore     = "Score:";
+        let strControls  = "< LEFT  RIGHT >  SPACE=jump";
+        let spawnTimer   = 0;
+        let nextObstacle = 0;
+        let seed         = 1;
+        let scoreTick    = 0;
+
+        // Start all obstacles inactive and far away
+        let i = 0;
+        while (i < 5) {
+            let obs = Obstacle.new(0, 255);
+            do obs.markPassed();          // mark inactive immediately
+            let obstacles[i] = obs;
+            let i = i + 1;
+        }
+
+        return this;
+    }
+
+    // -------------------------------------------------------------------------
+    // Cheap lane picker: seed cycles 0->1->2->0... shifted by score
+    // -------------------------------------------------------------------------
+    method int nextLane() {
+        let seed = seed + 1;
+        if (seed > 2) { let seed = 0; }
+        // shift by score so it isn't always the same sequence
+        return (seed + (score / 30)) - (((seed + (score / 30)) / 3) * 3);
+    }
+
+    // -------------------------------------------------------------------------
+    // Title screen
+    // -------------------------------------------------------------------------
+    method void showTitleScreen() {
+        var int key;
+
+        do Screen.clearScreen();
+
+        do Output.moveCursor(3, 18);
+        do Output.printString("SLOPE");
+
+        do Output.moveCursor(5, 13);
+        do Output.printString("Roll. Dodge. Survive.");
+
+        do Output.moveCursor(8, 12);
+        do Output.printString("--- CONTROLS ---");
+
+        do Output.moveCursor(10, 10);
+        do Output.printString("LEFT  arrow : move left");
+
+        do Output.moveCursor(11, 10);
+        do Output.printString("RIGHT arrow : move right");
+
+        do Output.moveCursor(12, 10);
+        do Output.printString("SPACE       : jump");
+
+        do Output.moveCursor(15, 9);
+        do Output.printString("Tip: spam SPACE when you spawn!");
+
+        do Output.moveCursor(18, 14);
+        do Output.printString("Press any key to play");
+
+        let key = Keyboard.keyPressed();
+        while (~(key = 0)) {
+            do Sys.wait(10);
+            let key = Keyboard.keyPressed();
+        }
+        let key = 0;
+        while (key = 0) {
+            do Sys.wait(10);
+            let key = Keyboard.keyPressed();
+        }
+
+        let gameState = 1;
+        return;
+    }
+
+    // -------------------------------------------------------------------------
+    // Main loop
+    // -------------------------------------------------------------------------
+    method void run() {
+        var int key;
+        var boolean collision;
+
+        do showTitleScreen();
+
+        while (gameState = 1) {
+            let key = Keyboard.keyPressed();
+            if (key = 130) { do ball.moveLeft();  }
+            if (key = 132) { do ball.moveRight(); }
+            if (key = 32)  { do ball.jump();      }
+
+            do ball.update();
+            do platform.update();
+            do updateObstacles();
+
+            let collision = checkCollisions();
+            if (collision) { let gameState = 2; }
+
+            // Score ticks up every 5 frames regardless of obstacles (~10 pts per spawn interval)
+            if (gameState = 1) {
+                let scoreTick = scoreTick + 1;
+                if (scoreTick > 4) {
+                    let score = score + 1;
+                    let scoreTick = 0;
+                }
+            }
+
+            do draw();
+            do Sys.wait(30);
+        }
+
+        do displayGameOver();
+        return;
+    }
+
+    // -------------------------------------------------------------------------
+    // Obstacle management — only moves obstacles, never recycles them.
+    // Recycling happens in checkCollisions() AFTER collision is tested.
+    // -------------------------------------------------------------------------
+    method void updateObstacles() {
+        var int i;
+        var Obstacle obs;
+
+        // Release one obstacle at a time on a timer (~50 frames apart = ~1.5s)
+        let spawnTimer = spawnTimer - 1;
+        if (spawnTimer < 1) {
+            let obs = obstacles[nextObstacle];
+            do obs.reset(nextLane(), 252);
+            let nextObstacle = nextObstacle + 1;
+            if (nextObstacle > 4) { let nextObstacle = 0; }
+            let spawnTimer = 50;
+        }
+
+        // Move all active obstacles — do NOT recycle here
+        let i = 0;
+        while (i < 5) {
+            let obs = obstacles[i];
+            if (obs.isActive()) {
+                do obs.update();
+            }
+            let i = i + 1;
+        }
+        return;
+    }
+
+    // -------------------------------------------------------------------------
+    // Collision + score: runs AFTER updateObstacles, BEFORE draw.
+    // Collision is tested first while obstacle is still active.
+    // Score fires as obstacle reaches the player (z < 12) — no more delay.
+    // Obstacle is only recycled after both checks are done.
+    // -------------------------------------------------------------------------
+    method boolean checkCollisions() {
+        var int i;
+        var Obstacle obs;
+        var boolean hit;
+
+        let hit = false;
+        let i = 0;
+        while (i < 5) {
+            let obs = obstacles[i];
+            if (obs.isActive()) {
+                // 1. Collision check while obstacle is still active
+                if (ball.collidesWith(obs)) { let hit = true; }
+
+                // 2. Once at player position, recycle (score is handled by tick in run())
+                if (obs.getZ() < 12) {
+                    do obs.markPassed();
+                }
+            }
+            let i = i + 1;
+        }
+        return hit;
+    }
+
+    // -------------------------------------------------------------------------
+    // Rendering
+    // -------------------------------------------------------------------------
+    method void draw() {
+        var int i;
+        var Obstacle obs;
+
+        do Screen.clearScreen();
+        do platform.draw();
+        do ball.draw();
+
+        let i = 0;
+        while (i < 5) {
+            let obs = obstacles[i];
+            do obs.draw();
+            let i = i + 1;
+        }
+
+        do drawHUD();
+        return;
+    }
+
+    method void drawHUD() {
+        do Output.moveCursor(0, 0);
+        do Output.printString(strScore);
+        do Output.printInt(score);
+        do Output.moveCursor(21, 0);
+        do Output.printString(strControls);
+        return;
+    }
+
+    // -------------------------------------------------------------------------
+    // Game over
+    // -------------------------------------------------------------------------
+    method void displayGameOver() {
+        var int key;
+
+        do Screen.clearScreen();
+
+        do Output.moveCursor(8, 20);
+        do Output.printString("GAME OVER");
+
+        do Output.moveCursor(10, 16);
+        do Output.printString("Final Score: ");
+        do Output.printInt(score);
+
+        do Output.moveCursor(13, 14);
+        do Output.printString("Press any key to exit");
+
+        let key = Keyboard.keyPressed();
+        while (~(key = 0)) {
+            do Sys.wait(10);
+            let key = Keyboard.keyPressed();
+        }
+        let key = 0;
+        while (key = 0) {
+            do Sys.wait(10);
+            let key = Keyboard.keyPressed();
+        }
+
+        return;
+    }
+
+    // -------------------------------------------------------------------------
+    // Cleanup
+    // -------------------------------------------------------------------------
+    method void dispose() {
+        var int i;
+        var Obstacle obs;
+
+        do ball.dispose();
+        do platform.dispose();
+        do strScore.dispose();
+        do strControls.dispose();
+
+        let i = 0;
+        while (i < 5) {
+            let obs = obstacles[i];
+            do obs.dispose();
+            let i = i + 1;
+        }
+
+        do Memory.deAlloc(obstacles);
+        do Memory.deAlloc(this);
+        return;
+    }
+}
