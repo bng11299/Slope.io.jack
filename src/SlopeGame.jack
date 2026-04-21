@@ -3,31 +3,34 @@ class SlopeGame {
     field Platform platform;
     field Array obstacles;
     field int score;
+    field int highScore;
     field int gameState;
     field String strScore;
+    field String strHigh;
     field String strControls;
-    field int spawnTimer;   // counts down; when 0, next obstacle is released
-    field int nextObstacle; // index of next obstacle to release (0..4)
-    field int seed;         // cheap pseudo-random lane picker
-    field int scoreTick;    // counts frames; every 5 frames score += 1
+    field int spawnTimer;
+    field int nextObstacle;
+    field int seed;
+    field int scoreTick;
 
     constructor SlopeGame new() {
-        var int i;
-        var Obstacle obs;
-
         let ball         = Ball.new();
         let platform     = Platform.new();
         let obstacles    = Array.new(5);
-        let score        = 0;
-        let gameState    = 0;
+        let highScore    = 0;
         let strScore     = "Score:";
+        let strHigh      = "Best:";
         let strControls  = "< LEFT           RIGHT >";
-        let spawnTimer   = 0;
-        let nextObstacle = 0;
-        let seed         = 1;
-        let scoreTick    = 0;
 
-        // Start all obstacles inactive
+        do initObstacles();
+        do resetGame();
+        return this;
+    }
+
+    // Allocate obstacle objects once; resetGame() reuses them
+    method void initObstacles() {
+        var int i;
+        var Obstacle obs;
         let i = 0;
         while (i < 5) {
             let obs = Obstacle.new(0, 255);
@@ -35,8 +38,31 @@ class SlopeGame {
             let obstacles[i] = obs;
             let i = i + 1;
         }
+        return;
+    }
 
-        return this;
+    // Reset all mutable game state without reallocating objects
+    method void resetGame() {
+        var int i;
+        var Obstacle obs;
+
+        do ball.resetPosition();   // Ball resets lane/x/y
+
+        let score        = 0;
+        let gameState    = 1;
+        let spawnTimer   = 0;
+        let nextObstacle = 0;
+        let seed         = 1;
+        let scoreTick    = 0;
+
+        // Deactivate all obstacles
+        let i = 0;
+        while (i < 5) {
+            let obs = obstacles[i];
+            do obs.markPassed();
+            let i = i + 1;
+        }
+        return;
     }
 
     // -------------------------------------------------------------------------
@@ -49,8 +75,7 @@ class SlopeGame {
     }
 
     // -------------------------------------------------------------------------
-    // Spawn interval: starts at 50 frames, decreases by 1 every 10 score points,
-    // floored at 20 frames so it never becomes impossible.
+    // Spawn interval: 50 frames down to 20 as score climbs
     // -------------------------------------------------------------------------
     method int spawnInterval() {
         var int interval;
@@ -60,7 +85,7 @@ class SlopeGame {
     }
 
     // -------------------------------------------------------------------------
-    // Title screen
+    // Title screen (shown once on first launch)
     // -------------------------------------------------------------------------
     method void showTitleScreen() {
         var int key;
@@ -86,28 +111,39 @@ class SlopeGame {
         do Output.printString("Press any key to play");
 
         let key = Keyboard.keyPressed();
-        while (~(key = 0)) {
-            do Sys.wait(10);
-            let key = Keyboard.keyPressed();
-        }
+        while (~(key = 0)) { do Sys.wait(10); let key = Keyboard.keyPressed(); }
         let key = 0;
-        while (key = 0) {
-            do Sys.wait(10);
-            let key = Keyboard.keyPressed();
-        }
+        while (key = 0)    { do Sys.wait(10); let key = Keyboard.keyPressed(); }
 
-        let gameState = 1;
         return;
     }
 
     // -------------------------------------------------------------------------
-    // Main loop
+    // Main entry point — loops title -> play -> game-over -> play -> ...
     // -------------------------------------------------------------------------
     method void run() {
+        var boolean playAgain;
+        do showTitleScreen();
+
+        let playAgain = true;
+        while (playAgain) {
+            do resetGame();
+            do playLoop();
+
+            if (score > highScore) { let highScore = score; }
+
+            let playAgain = showGameOver();
+        }
+
+        return;
+    }
+
+    // -------------------------------------------------------------------------
+    // One full play session
+    // -------------------------------------------------------------------------
+    method void playLoop() {
         var int key;
         var boolean collision;
-
-        do showTitleScreen();
 
         while (gameState = 1) {
             let key = Keyboard.keyPressed();
@@ -132,8 +168,6 @@ class SlopeGame {
             do draw();
             do Sys.wait(30);
         }
-
-        do displayGameOver();
         return;
     }
 
@@ -156,9 +190,7 @@ class SlopeGame {
         let i = 0;
         while (i < 5) {
             let obs = obstacles[i];
-            if (obs.isActive()) {
-                do obs.update();
-            }
+            if (obs.isActive()) { do obs.update(); }
             let i = i + 1;
         }
         return;
@@ -178,9 +210,7 @@ class SlopeGame {
             let obs = obstacles[i];
             if (obs.isActive()) {
                 if (ball.collidesWith(obs)) { let hit = true; }
-                if (obs.getZ() < 12) {
-                    do obs.markPassed();
-                }
+                if (obs.getZ() < 12)        { do obs.markPassed(); }
             }
             let i = i + 1;
         }
@@ -213,41 +243,53 @@ class SlopeGame {
         do Output.moveCursor(0, 0);
         do Output.printString(strScore);
         do Output.printInt(score);
+        do Output.moveCursor(0, 32);
+        do Output.printString(strHigh);
+        do Output.printInt(highScore);
         do Output.moveCursor(21, 0);
         do Output.printString(strControls);
         return;
     }
 
     // -------------------------------------------------------------------------
-    // Game over
+    // Game over screen — always restarts, any key continues
     // -------------------------------------------------------------------------
-    method void displayGameOver() {
+    method boolean showGameOver() {
         var int key;
 
         do Screen.clearScreen();
 
-        do Output.moveCursor(8, 20);
+        do Output.moveCursor(6, 20);
         do Output.printString("GAME OVER");
 
-        do Output.moveCursor(10, 16);
-        do Output.printString("Final Score: ");
+        do Output.moveCursor(8, 15);
+        do Output.printString("Score:      ");
         do Output.printInt(score);
 
-        do Output.moveCursor(13, 14);
-        do Output.printString("Press any key to exit");
+        do Output.moveCursor(10, 15);
+        do Output.printString("Best Score: ");
+        do Output.printInt(highScore);
 
-        let key = Keyboard.keyPressed();
-        while (~(key = 0)) {
-            do Sys.wait(10);
-            let key = Keyboard.keyPressed();
+        if (score = highScore) {
+            do Output.moveCursor(12, 14);
+            do Output.printString("** NEW HIGH SCORE! **");
         }
+
+        do Output.moveCursor(15, 11);
+        do Output.printString("Press any key to play again");
+
+        // Drain any held key first
+        let key = Keyboard.keyPressed();
+        while (~(key = 0)) { do Sys.wait(10); let key = Keyboard.keyPressed(); }
+
+        // Wait for any key
         let key = 0;
         while (key = 0) {
             do Sys.wait(10);
             let key = Keyboard.keyPressed();
         }
 
-        return;
+        return true;
     }
 
     // -------------------------------------------------------------------------
@@ -260,6 +302,7 @@ class SlopeGame {
         do ball.dispose();
         do platform.dispose();
         do strScore.dispose();
+        do strHigh.dispose();
         do strControls.dispose();
 
         let i = 0;
