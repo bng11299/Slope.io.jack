@@ -48,7 +48,7 @@ This means at score 0 a new obstacle appears roughly every 1.5 seconds, and at s
 Lane selection uses a cheap counter (`seed`) cycled mod 3 and offset by `score / 30` to avoid always repeating the same sequence.
  
 ### Scoring (`SlopeGame.jack`)
-Score increments by 1 every 5 frames (independent of obstacles), rewarding pure survival time. At 30ms per frame this is roughly 6–7 points per second. ![Sorry not sorry]([URL or Path)](https://pbs.twimg.com/media/G3WASUdXYAAFKaz?format=jpg&name=900x900) 
+Score increments by 1 every 5 frames (independent of obstacles), rewarding pure survival time. At 30ms per frame this is roughly 6–7 points per second. ![Sorry not sorry]([https://pbs.twimg.com/media/G3WASUdXYAAFKaz?format=jpg&name=900x900)]
  
 ### High Score (`SlopeGame.jack`)
 `highScore` is a field on the `SlopeGame` object, which is created once in `Main` and never destroyed between rounds. After each `playLoop()` exits, the current score is compared and `highScore` is updated before the game-over screen renders. This means the "NEW HIGH SCORE!" banner is always accurate. The high score is displayed in the top-right of the HUD during play and on the game-over screen.
