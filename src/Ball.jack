@@ -3,8 +3,6 @@ class Ball {
     field int x;
     field int y;
     field int radius;
-    field int vy;
-    field boolean isJumping;
 
     method int targetX() {
         if (lane = 0) { return 160; }
@@ -13,12 +11,10 @@ class Ball {
     }
 
     constructor Ball new() {
-        let lane      = 1;
-        let x         = 256;
-        let y         = 220;
-        let radius    = 8;
-        let vy        = 0;
-        let isJumping = false;
+        let lane   = 1;
+        let x      = 256;
+        let y      = 220;
+        let radius = 8;
         return this;
     }
 
@@ -32,29 +28,6 @@ class Ball {
         if (diff < -3) { let x = x - 3; }
         if ((diff > -3) & (diff < 3)) { let x = tx; }
 
-        // Apply gravity when jumping
-        if (isJumping) {
-            let vy = vy + 2;
-            let y  = y + vy;
-
-            // Clamp so ball never goes above y=radius (off screen top)
-            if (y < radius) { let y = radius; }
-
-            // Landed back on road
-            if (y > 220) {
-                let y         = 220;
-                let vy        = 0;
-                let isJumping = false;
-            }
-        }
-        return;
-    }
-
-    method void jump() {
-        if (~isJumping) {
-            let isJumping = true;
-            let vy        = -12;
-        }
         return;
     }
 
@@ -73,8 +46,6 @@ class Ball {
     method int getY()    { return y;    }
 
     method void draw() {
-        // Guard: only draw if ball is fully on screen
-        // Screen is 512x256; drawCircle needs x-r>=0, x+r<=511, y-r>=0, y+r<=255
         if ((x - radius) < 0)   { return; }
         if ((x + radius) > 511) { return; }
         if ((y - radius) < 0)   { return; }
@@ -87,10 +58,8 @@ class Ball {
     method boolean collidesWith(Obstacle obstacle) {
         var int obX, obY, obW, obH;
 
-        // Lane shortcut when not jumping
-        if (~isJumping) {
-            if (~(lane = obstacle.getLane())) { return false; }
-        }
+        // Lane shortcut — no jump so lane mismatch always means no collision
+        if (~(lane = obstacle.getLane())) { return false; }
 
         // Only check when obstacle is close enough to overlap the ball's y position
         if (obstacle.getZ() > 20) { return false; }

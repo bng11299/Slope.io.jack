@@ -12,11 +12,21 @@ class Obstacle {
         return this;
     }
 
-    // Called every frame. Does NOT set passed — SlopeGame checks z<=0 itself
-    // so collision can be tested before the obstacle is recycled.
+    // Speed is proportional to travelled (256-z) so that apparent on-screen
+    // size-relative motion stays constant despite perspective projection.
+    // Derivation: apparent_speed = delta_screenY / halfH
+    //   delta_screenY = (85/128) * speed
+    //   halfH         = 20 * travelled / 256
+    // For constant apparent_speed: speed must scale with travelled.
+    // speed = max(1, travelled/32 + 1) keeps values in a safe integer range.
     method void update() {
+        var int travelled;
+        var int speed;
         if (~active) { return; }
-        let z = z - 3;
+        let travelled = 256 - z;
+        if (travelled < 0) { let travelled = 0; }
+        let speed = (travelled / 32) + 1;
+        let z = z - speed;
         return;
     }
 
@@ -47,13 +57,17 @@ class Obstacle {
         return 50 + ((85 * travelled) / 128);
     }
 
-    // screenX converges to vanishing point (256) when far
+    // screenX spreads linearly from vanishing point (256) to lane position as obstacle approaches
     method int screenX() {
         var int laneX;
+        var int travelled;
+        let travelled = 256 - z;
+        if (travelled < 0)   { let travelled = 0;   }
+        if (travelled > 256) { let travelled = 256; }
         if (lane = 0) { let laneX = 160; }
         if (lane = 1) { let laneX = 256; }
         if (lane = 2) { let laneX = 352; }
-        return laneX + (((256 - laneX) * z) / 256);
+        return 256 + (((laneX - 256) * travelled) / 256);
     }
 
     method int halfW() {
