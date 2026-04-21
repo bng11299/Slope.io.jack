@@ -31,6 +31,13 @@ class Ball {
         return;
     }
 
+    method void resetPosition() {
+        let lane = 1;
+        let x    = 256;
+        let y    = 220;
+        return;
+    }
+
     method void moveLeft() {
         if (lane > 0) { let lane = lane - 1; }
         return;
