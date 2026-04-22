@@ -65,17 +65,17 @@ class Ball {
     method boolean collidesWith(Obstacle obstacle) {
         var int obX, obY, obW, obH;
 
-        // Lane shortcut — no jump so lane mismatch always means no collision
-        if (~(lane = obstacle.getLane())) { return false; }
-
-        // Only check when obstacle is close enough to overlap the ball's y position
-        if (obstacle.getZ() > 20) { return false; }
+        // Only test when obstacle is close enough to reach the ball's y position.
+        // Threshold z<50 is generous enough to survive the accelerating speed jumps.
+        if (obstacle.getZ() > 50) { return false; }
 
         let obX = obstacle.getX();
         let obY = obstacle.getY();
         let obW = obstacle.getWidth();
         let obH = obstacle.getHeight();
 
+        // Use actual screen x position (not lane field) so sliding ball is
+        // never immune mid-transition and never blamed for a lane it has left.
         if ((x + radius) > obX) {
             if ((x - radius) < (obX + obW)) {
                 if ((y + radius) > obY) {
